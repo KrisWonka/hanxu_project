@@ -31,9 +31,10 @@ WHISPER_HALLUCINATIONS = {
 class STTEngine:
     """Unified speech-to-text interface."""
 
-    def __init__(self, provider: str = "local_whisper", language: str = "zh"):
+    def __init__(self, provider: str = "local_whisper", language: str = "zh", whisper_model: str = "medium"):
         self.provider = provider
         self.language = language
+        self._whisper_model_name = whisper_model
         self._whisper_model = None
 
     def recognize(self, wav_bytes: bytes) -> str:
@@ -91,8 +92,9 @@ class STTEngine:
         if self._whisper_model is None:
             import whisper  # type: ignore
 
-            logger.info("Loading local Whisper model (small)...")
-            self._whisper_model = whisper.load_model("small")
+            model_name = os.environ.get("WHISPER_MODEL", self._whisper_model_name)
+            logger.info("Loading local Whisper model (%s)...", model_name)
+            self._whisper_model = whisper.load_model(model_name)
             logger.info("Whisper model loaded")
         return self._whisper_model
 

@@ -72,6 +72,40 @@ class ContactBook:
                     break
         return results
 
+    def add_contact(self, name: str, phone: str, aliases: list[str] | None = None) -> bool:
+        """Add a new contact and persist to YAML."""
+        if self.lookup(name):
+            return False
+        contact = Contact(name=name, phone=str(phone), aliases=aliases or [])
+        self.contacts.append(contact)
+        self._save()
+        logger.info("Added contact: %s (%s)", name, phone)
+        return True
+
+    def remove_contact(self, name: str) -> bool:
+        """Remove a contact by name and persist to YAML."""
+        contact = self.lookup(name)
+        if not contact:
+            matches = self.fuzzy_lookup(name)
+            contact = matches[0] if len(matches) == 1 else None
+        if not contact:
+            return False
+        self.contacts.remove(contact)
+        self._save()
+        logger.info("Removed contact: %s", contact.name)
+        return True
+
+    def _save(self):
+        """Persist current contacts back to YAML."""
+        data = {
+            "contacts": [
+                {"name": c.name, "phone": c.phone, **({"aliases": c.aliases} if c.aliases else {})}
+                for c in self.contacts
+            ]
+        }
+        with open(self.path, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
     def list_all(self) -> list[dict]:
         """Return all contacts as dicts (for agent context)."""
         return [

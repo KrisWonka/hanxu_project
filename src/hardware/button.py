@@ -1,16 +1,80 @@
 """
-Physical button input (GPIO on Orange Pi, keyboard fallback on Mac).
+Physical button + LED input (GPIO on Orange Pi, keyboard fallback on Mac).
 
-In dev mode:  press Enter to simulate button press/release.
-In prod mode: uses gpiod to listen for GPIO edge events.
+In dev mode:  press Enter to simulate button press/release, LED is printed.
+In prod mode: uses gpiod to listen for GPIO edge events and drive an LED.
 """
 
 from __future__ import annotations
 
-import sys
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
+
+
+class LED:
+    """Status LED controller."""
+
+    def __init__(self, mode: str = "dev", chip: str = "gpiochip0", pin: int = 11):
+        self._mode = mode
+        self._chip = None
+        self._line = None
+        self._blinking = False
+
+        if mode == "prod":
+            self._setup_gpio(chip, pin)
+
+    def _setup_gpio(self, chip: str, pin: int):
+        try:
+            import gpiod  # type: ignore
+
+            self._chip = gpiod.Chip(chip)
+            self._line = self._chip.get_line(pin)
+            self._line.request(consumer="voice-agent-led", type=gpiod.LINE_REQ_DIR_OUT)
+            logger.info("LED ready on %s pin %d", chip, pin)
+        except Exception as e:
+            logger.warning("LED GPIO init failed: %s", e)
+            self._mode = "dev"
+
+    def on(self):
+        if self._mode == "dev":
+            return
+        if self._line:
+            self._line.set_value(1)
+
+    def off(self):
+        self._blinking = False
+        if self._mode == "dev":
+            return
+        if self._line:
+            self._line.set_value(0)
+
+    def blink(self, interval: float = 0.5):
+        """Blink LED in background."""
+        self._blinking = True
+
+        def _blink_loop():
+            import time
+            while self._blinking:
+                self.on()
+                time.sleep(interval)
+                if not self._blinking:
+                    break
+                if self._line:
+                    self._line.set_value(0)
+                time.sleep(interval)
+
+        t = threading.Thread(target=_blink_loop, daemon=True)
+        t.start()
+
+    def close(self):
+        self._blinking = False
+        if self._line:
+            self._line.set_value(0)
+            self._line.release()
+        if self._chip:
+            self._chip.close()
 
 
 class Button:

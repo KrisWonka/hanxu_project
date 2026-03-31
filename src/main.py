@@ -68,13 +68,19 @@ def run_voice_mode(agent: Agent, config: dict, mode: str):
     """Voice mode — record audio, STT, Agent, TTS."""
     from src.audio.recorder import Recorder
     from src.audio.tts import TTS
-    from src.hardware.button import Button
+    from src.hardware.button import Button, LED
     from src.stt.engine import STTEngine
 
     button = Button(
         mode=mode,
         chip=config["gpio"]["chip"],
         pin=config["gpio"]["button_pin"],
+    )
+
+    led = LED(
+        mode=mode,
+        chip=config["gpio"]["chip"],
+        pin=config["gpio"].get("led_pin", 11),
     )
 
     recorder = Recorder(
@@ -88,6 +94,7 @@ def run_voice_mode(agent: Agent, config: dict, mode: str):
     stt = STTEngine(
         provider=config["stt"]["provider"],
         language=config["stt"]["language"],
+        whisper_model=config["stt"].get("whisper_model", "medium"),
     )
 
     tts = TTS(
@@ -98,7 +105,9 @@ def run_voice_mode(agent: Agent, config: dict, mode: str):
 
     try:
         while True:
+            led.off()
             button.wait_for_press()
+            led.on()
 
             if mode == "dev":
                 print("🎤 正在录音... (按 Enter 停止，或等待静音自动停止)")
@@ -118,13 +127,16 @@ def run_voice_mode(agent: Agent, config: dict, mode: str):
                 rec_thread.join(timeout=2)
 
             if not audio_bytes:
+                led.off()
                 print("⚠️  未录到声音，请重试")
                 continue
 
+            led.blink(0.3)
             print("🔍 识别中...")
             text = stt.recognize(audio_bytes)
 
             if not text:
+                led.off()
                 print("⚠️  未识别到有效语音，请重试")
                 continue
 
@@ -133,6 +145,7 @@ def run_voice_mode(agent: Agent, config: dict, mode: str):
             print("🤖 思考中...")
             result = agent.run(text)
 
+            led.on()
             print(f"💬 助手: {result.reply}")
             if result.tool_calls_made:
                 print(f"   🔧 执行了: {', '.join(result.tool_calls_made)}")
@@ -140,6 +153,7 @@ def run_voice_mode(agent: Agent, config: dict, mode: str):
             tts.speak(result.reply)
 
     finally:
+        led.close()
         button.close()
 
 

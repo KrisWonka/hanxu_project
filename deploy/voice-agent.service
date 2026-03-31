@@ -1,0 +1,18 @@
+[Unit]
+Description=Voice Agent - AI-powered voice assistant
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dev
+WorkingDirectory=/home/dev/hanxu_project
+EnvironmentFile=/home/dev/hanxu_project/.env
+ExecStart=/usr/bin/python3 src/main.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

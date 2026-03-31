@@ -22,6 +22,9 @@ stt:
   # "local_whisper" (free, no key), "openai_whisper", or "dashscope"
   provider: local_whisper
   language: zh
+  # Whisper model: tiny/base/small/medium/large (bigger = more accurate but slower)
+  # Env var WHISPER_MODEL overrides this. "medium" recommended for Mac, "small" for Orange Pi.
+  whisper_model: medium
 
 # -- Text-to-Speech --
 tts:
@@ -42,11 +45,17 @@ audio:
 
 # -- Telephony / 4G Modem --
 telephony:
-  # "real" or "mock"
+  # "real", "mock", or "aliyun"
   modem_mode: mock
   serial_port: /dev/ttyUSB2
   baud_rate: 115200
   timeout: 1
+  # Aliyun Voice API (requires enterprise credentials)
+  # aliyun:
+  #   access_key_id: ""       # or env ALIBABA_CLOUD_ACCESS_KEY_ID
+  #   access_key_secret: ""   # or env ALIBABA_CLOUD_ACCESS_KEY_SECRET
+  #   called_show_number: ""  # purchased voice number
+  #   tts_code: ""            # TTS template code
 
 # -- GPIO (Orange Pi 5) --
 gpio:
