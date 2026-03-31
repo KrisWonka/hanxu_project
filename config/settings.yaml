@@ -19,12 +19,16 @@ agent:
 
 # -- Speech-to-Text --
 stt:
-  # "local_whisper" (free, no key), "openai_whisper", or "dashscope"
-  provider: local_whisper
+  # # "local_whisper" (free, no key), "openai_whisper", or "dashscope"
+  # provider: local_whisper
+  # language: zh
+  # # Whisper model: tiny/base/small/medium/large (bigger = more accurate but slower)
+  # # Env var WHISPER_MODEL overrides this. "medium" recommended for Mac, "small" for Orange Pi.
+  # whisper_model: medium
+  provider: dashscope
   language: zh
-  # Whisper model: tiny/base/small/medium/large (bigger = more accurate but slower)
-  # Env var WHISPER_MODEL overrides this. "medium" recommended for Mac, "small" for Orange Pi.
-  whisper_model: medium
+  whisper_model: base  # 仅 local_whisper 回退时使用
+
 
 # -- Text-to-Speech --
 tts:

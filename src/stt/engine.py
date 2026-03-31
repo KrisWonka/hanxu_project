@@ -141,19 +141,35 @@ class STTEngine:
 
         dashscope.api_key = os.environ.get("DASHSCOPE_API_KEY", "")
 
-        recognition = Recognition(
-            model="paraformer-realtime-v2",
-            format="wav",
-            sample_rate=16000,
-        )
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            f.write(wav_bytes)
+            tmp_path = f.name
 
-        result = recognition.call(audio=wav_bytes)
-
-        if result.status_code != 200:
-            raise RuntimeError(
-                f"DashScope ASR error {result.status_code}: {result.message}"
+        try:
+            recognition = Recognition(
+                model="paraformer-realtime-v2",
+                format="wav",
+                sample_rate=16000,
+                language_hints=["zh"],
+                callback=None,
             )
+            result = recognition.call(tmp_path)
+            logger.debug("DashScope raw status: %s", result.status_code)
 
-        text = result.output.get("text", "").strip()
-        logger.info("STT [dashscope]: %s", text)
-        return text
+            sentences = result.get_sentence()
+            logger.debug("DashScope raw sentences: %s", sentences)
+
+            if isinstance(sentences, list):
+                text = "".join(
+                    s.get("text", "") if isinstance(s, dict) else str(s)
+                    for s in sentences
+                ).strip()
+            elif isinstance(sentences, dict):
+                text = sentences.get("text", "").strip()
+            else:
+                text = str(sentences).strip() if sentences else ""
+
+            logger.info("STT [dashscope]: %s", text)
+            return text
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)

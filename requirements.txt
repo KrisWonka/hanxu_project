@@ -12,6 +12,9 @@ edge-tts>=6.1
 # Audio playback (for TTS output)
 pydub>=0.25
 
+# DashScope STT (Alibaba Cloud Paraformer)
+dashscope>=1.20
+
 # Serial communication (4G modem AT commands)
 pyserial>=3.5
 
