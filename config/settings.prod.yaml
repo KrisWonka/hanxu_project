@@ -1,0 +1,47 @@
+# ============================================================
+# Orange Pi 5 Pro - Production Configuration
+# ============================================================
+
+mode: prod
+
+# -- LLM / Agent --
+agent:
+  provider: deepseek
+  model: deepseek-chat
+  temperature: 0.3
+  max_tokens: 512
+
+# -- Speech-to-Text --
+# 用云端 STT，Orange Pi 算力跑不动本地 Whisper medium
+stt:
+  # "dashscope" 国内快，"openai_whisper" 准确率最高
+  provider: dashscope
+  language: zh
+  whisper_model: base  # 仅 local_whisper 回退时使用
+
+# -- Text-to-Speech --
+tts:
+  provider: edge
+  voice: zh-CN-XiaoxiaoNeural
+  rate: "+0%"
+
+# -- Audio --
+audio:
+  sample_rate: 16000
+  channels: 1
+  input_device: null
+  silence_timeout: 2.0
+  silence_threshold: 500
+
+# -- Telephony / 4G Modem --
+telephony:
+  modem_mode: mock
+  serial_port: /dev/ttyUSB2
+  baud_rate: 115200
+  timeout: 1
+
+# -- GPIO (Orange Pi 5) --
+gpio:
+  chip: gpiochip0
+  button_pin: 7
+  led_pin: 11

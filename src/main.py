@@ -10,6 +10,7 @@ Modes:
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
@@ -27,7 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 def load_config() -> dict:
-    config_path = ROOT_DIR / "config" / "settings.yaml"
+    profile = os.environ.get("VOICE_AGENT_PROFILE", "")
+    if profile:
+        config_path = ROOT_DIR / "config" / f"settings.{profile}.yaml"
+    else:
+        config_path = ROOT_DIR / "config" / "settings.yaml"
+
+    if not config_path.exists():
+        config_path = ROOT_DIR / "config" / "settings.yaml"
+
+    logger.info("Loading config: %s", config_path.name)
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
