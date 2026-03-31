@@ -1,0 +1,55 @@
+# ============================================================
+# Orange Pi 5 Voice Agent - Configuration
+# ============================================================
+
+# -- Run mode --
+# "dev"  = Mac with mic (keyboard + voice recording)
+# "text" = pure text input (no mic/speaker needed, best for Docker)
+# "prod" = Orange Pi 5 (GPIO button, real 4G modem)
+mode: dev
+
+# -- LLM / Agent --
+agent:
+  # "deepseek", "dashscope", "openai", or "ollama"
+  provider: deepseek
+  model: deepseek-chat
+  # API key read from env: DEEPSEEK_API_KEY (or DASHSCOPE_API_KEY / OPENAI_API_KEY)
+  temperature: 0.3
+  max_tokens: 512
+
+# -- Speech-to-Text --
+stt:
+  # "local_whisper" (free, no key), "openai_whisper", or "dashscope"
+  provider: local_whisper
+  language: zh
+
+# -- Text-to-Speech --
+tts:
+  # "edge" (edge-tts, free) or "pyttsx3" (offline fallback)
+  provider: edge
+  voice: zh-CN-XiaoxiaoNeural
+  rate: "+0%"
+
+# -- Audio --
+audio:
+  sample_rate: 16000
+  channels: 1
+  # device index (null = system default). Run `python3 -m sounddevice` to list.
+  input_device: null
+  # seconds of silence before auto-stop (0 = manual stop only)
+  silence_timeout: 2.0
+  silence_threshold: 500
+
+# -- Telephony / 4G Modem --
+telephony:
+  # "real" or "mock"
+  modem_mode: mock
+  serial_port: /dev/ttyUSB2
+  baud_rate: 115200
+  timeout: 1
+
+# -- GPIO (Orange Pi 5) --
+gpio:
+  chip: gpiochip0
+  button_pin: 7
+  led_pin: 11

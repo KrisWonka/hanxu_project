@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Node (if needed later)
+node_modules/
+
+# Secrets
+.env
+
+# Docker overrides
+docker-compose.override.yml

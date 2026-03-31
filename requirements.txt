@@ -1,0 +1,19 @@
+# Core
+PyYAML>=6.0
+openai>=1.0
+
+# Audio recording
+sounddevice>=0.4
+numpy>=1.24
+
+# Text-to-Speech
+edge-tts>=6.1
+
+# Audio playback (for TTS output)
+pydub>=0.25
+
+# Serial communication (4G modem AT commands)
+pyserial>=3.5
+
+# GPIO (only needed on Orange Pi, optional on Mac)
+# gpiod>=2.0
