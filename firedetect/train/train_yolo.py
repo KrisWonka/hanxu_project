@@ -25,7 +25,8 @@ def main() -> int:
     p.add_argument("--model", default="yolov8n.pt", help="预训练权重（COCO）")
     p.add_argument("--imgsz", type=int, default=960)
     p.add_argument("--epochs", type=int, default=100)
-    p.add_argument("--batch", type=int, default=-1, help="-1 = ultralytics auto")
+    p.add_argument("--batch", type=float, default=-1.0,
+                   help="-1=auto, 整数=固定 batch, 0<x<=1=占用 x 比例 GPU 显存")
     p.add_argument("--project", default="runs/train")
     p.add_argument("--name", default="firedetect_v1")
     p.add_argument("--device", default="0")
@@ -76,11 +77,18 @@ def main() -> int:
 
     model = YOLO(args.model)
 
+    # ultralytics 接受 int (固定 batch) 或 float in (0,1] (显存比例)
+    # -1 → AutoBatch；> 1 当作整数 batch；0<x<=1 当作显存比例
+    if args.batch == -1.0 or args.batch > 1.0:
+        batch = int(args.batch)
+    else:
+        batch = float(args.batch)
+
     results = model.train(
         data=args.data,
         imgsz=args.imgsz,
         epochs=args.epochs,
-        batch=args.batch,
+        batch=batch,
         project=args.project,
         name=args.name,
         device=args.device,
