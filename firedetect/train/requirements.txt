@@ -1,0 +1,24 @@
+# 训练依赖（krix-su, Python 3.10）
+
+# 核心训练
+ultralytics>=8.3.0
+torch>=2.4
+opencv-python-headless>=4.10
+numpy
+pyyaml
+tqdm
+pandas
+matplotlib
+
+# 数据预处理
+imagededup>=0.3.2          # pHash 去重
+roboflow                   # 部分公开集 Roboflow 镜像
+kaggle                     # Home Fire 等 Kaggle 集
+requests
+
+# 评估
+pycocotools
+scikit-learn
+
+# RKNN 转换（仅 krix-su；从 https://github.com/airockchip/rknn-toolkit2 release 取 wheel）
+# rknn-toolkit2

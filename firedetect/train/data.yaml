@@ -1,0 +1,21 @@
+# YOLO 数据集配置 — firedetect
+# 训练时 ultralytics 从这里读路径；data/merged/ 由 dataset_prep.py 生成
+
+path: ../data/merged
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: fire
+  1: smoke
+
+# 自定义元信息（dataset_prep.py 维护）
+sources:
+  - fasdd_cv
+  - dfire
+  - fssd_indoor
+  - home_fire
+  - material_aux
+  - hard_negatives
+  - local
