@@ -95,13 +95,66 @@ def step1_load_fasdd_coco(fasdd_root: Path) -> Dict[str, Dict[str, List[str]]]:
 
 
 # ─────────────────────────────────────────────────────────────────
-# Step 3: 合并（含 D-Fire 类 ID 翻转 = step 2 内联）
+# v2 质量过滤工具
+# ─────────────────────────────────────────────────────────────────
+def _filter_label_lines(
+    lines: List[str],
+    flip_dfire: bool,
+    drop_zero_size: bool,
+    max_aspect: float,
+    counters: dict,
+) -> List[str]:
+    """对一组 YOLO label 行做过滤 + 可选翻转类 ID。
+
+    counters 是字典，原地累加 dropped_zero / dropped_aspect。
+    """
+    out = []
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) != 5:
+            continue
+        try:
+            cls = parts[0]
+            cx, cy, w, h = (float(x) for x in parts[1:])
+        except ValueError:
+            continue
+        if drop_zero_size and (w == 0 or h == 0):
+            counters["dropped_zero"] += 1
+            continue
+        if max_aspect > 0 and w > 0 and h > 0:
+            aspect = max(w, h) / min(w, h)
+            if aspect > max_aspect:
+                counters["dropped_aspect"] += 1
+                continue
+        if flip_dfire:
+            cls = DFIRE_FLIP_MAP.get(cls, cls)
+        out.append(f"{cls} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+    return out
+
+
+def _image_short_edge_ok(img_file: Path, min_short: int) -> bool:
+    """检查图像短边是否 >= min_short。失败返回 False。"""
+    if min_short <= 0:
+        return True
+    try:
+        from PIL import Image
+        with Image.open(img_file) as im:
+            return min(im.size) >= min_short
+    except Exception:
+        return True  # 打不开时不过滤（让后面的步骤报错）
+
+
+# ─────────────────────────────────────────────────────────────────
+# Step 3: 合并（含 D-Fire 类 ID 翻转 = step 2 内联 + v2 质量过滤）
 # ─────────────────────────────────────────────────────────────────
 def step3_merge(
     dfire_root: Path,
     fasdd_root: Path,
     fasdd_yolo: Dict[str, Dict[str, List[str]]],
     merged_root: Path,
+    drop_zero_size: bool = True,
+    max_aspect: float = 0.0,
+    min_short_edge: int = 0,
 ) -> int:
     """合并到 merged_root/<split>/{images,labels}/。
 
@@ -109,13 +162,23 @@ def step3_merge(
     - 图像用 hardlink（同文件系统零额外空间）
     - D-Fire label 读取时翻转类 ID（0↔1）
     - FASDD label 从内存映射写出
+
+    v2 质量过滤（默认温和）：
+      - drop_zero_size=True: 过滤 w=0 或 h=0 的 bbox 行（默认开，零成本）
+      - max_aspect=0: 过滤长宽比 > N 的 bbox（0=不过滤；推荐 15）
+      - min_short_edge=0: 过滤图像短边 < N 的整张图（0=不过滤；推荐 320）
+
     返回总合并文件数。
     """
     print("=" * 60)
-    print("Step 3: 合并到 data/merged/（含 D-Fire 类 ID 翻转）")
+    print("Step 3: 合并到 data/merged/（含 D-Fire 类 ID 翻转 + 质量过滤）")
+    print(f"  filters: drop_zero_size={drop_zero_size}, max_aspect={max_aspect}, "
+          f"min_short_edge={min_short_edge}")
     print("=" * 60)
 
+    counters = {"dropped_zero": 0, "dropped_aspect": 0, "dropped_small_img": 0}
     total = 0
+
     for split in SPLITS:
         img_dst = merged_root / split / "images"
         lbl_dst = merged_root / split / "labels"
@@ -132,6 +195,9 @@ def step3_merge(
             for img_file in dfire_imgs.iterdir():
                 if not img_file.is_file():
                     continue
+                if not _image_short_edge_ok(img_file, min_short_edge):
+                    counters["dropped_small_img"] += 1
+                    continue
                 stem = img_file.stem
                 new_img = img_dst / f"dfire__{stem}{img_file.suffix}"
                 new_lbl = lbl_dst / f"dfire__{stem}.txt"
@@ -139,17 +205,17 @@ def step3_merge(
                 if not new_img.exists():
                     os.link(img_file, new_img)
 
-                # 读 + 翻转类 ID + 写
+                # 读 + 过滤 + 翻转类 ID + 写
                 old_lbl = dfire_lbls / f"{stem}.txt"
                 if old_lbl.exists():
-                    flipped = []
-                    for line in old_lbl.read_text().splitlines():
-                        parts = line.strip().split()
-                        if not parts:
-                            continue
-                        parts[0] = DFIRE_FLIP_MAP.get(parts[0], parts[0])
-                        flipped.append(" ".join(parts))
-                    new_lbl.write_text("\n".join(flipped))
+                    filtered = _filter_label_lines(
+                        old_lbl.read_text().splitlines(),
+                        flip_dfire=True,
+                        drop_zero_size=drop_zero_size,
+                        max_aspect=max_aspect,
+                        counters=counters,
+                    )
+                    new_lbl.write_text("\n".join(filtered))
                 else:
                     new_lbl.write_text("")  # 负样本：空 txt
 
@@ -162,6 +228,9 @@ def step3_merge(
             for img_file in fasdd_imgs.iterdir():
                 if not img_file.is_file():
                     continue
+                if not _image_short_edge_ok(img_file, min_short_edge):
+                    counters["dropped_small_img"] += 1
+                    continue
                 stem = img_file.stem
                 new_img = img_dst / f"fasdd__{stem}{img_file.suffix}"
                 new_lbl = lbl_dst / f"fasdd__{stem}.txt"
@@ -170,7 +239,14 @@ def step3_merge(
                     os.link(img_file, new_img)
 
                 yolo_lines = split_yolo.get(img_file.name, [])
-                new_lbl.write_text("\n".join(yolo_lines))
+                filtered = _filter_label_lines(
+                    yolo_lines,
+                    flip_dfire=False,
+                    drop_zero_size=drop_zero_size,
+                    max_aspect=max_aspect,
+                    counters=counters,
+                )
+                new_lbl.write_text("\n".join(filtered))
 
                 n_fasdd += 1
 
@@ -178,6 +254,9 @@ def step3_merge(
         print(f"  {split}: dfire={n_dfire}, fasdd={n_fasdd}, total={n_dfire + n_fasdd}"
               f" — {time.time() - t0:.1f}s")
 
+    print(f"\n  [过滤统计] 0 尺寸 bbox 丢: {counters['dropped_zero']}, "
+          f"极端长宽比丢: {counters['dropped_aspect']}, "
+          f"短边过小图丢: {counters['dropped_small_img']}")
     return total
 
 
@@ -363,6 +442,13 @@ def main() -> int:
     p.add_argument("--steps", default="all", help="逗号分隔步骤号 / all")
     p.add_argument("--dedup-thresh", type=int, default=6, help="pHash 汉明距离阈值")
     p.add_argument("--skip-dedup", action="store_true", help="跳过最慢的 step 4")
+    # v2 质量过滤
+    p.add_argument("--keep-zero-bbox", action="store_true",
+                   help="保留 w=0 / h=0 的退化 bbox（默认丢）")
+    p.add_argument("--max-aspect", type=float, default=0.0,
+                   help="过滤长宽比 > N 的 bbox（0 = 不过滤；推荐 15）")
+    p.add_argument("--min-short-edge", type=int, default=0,
+                   help="过滤图像短边 < N 的整张图（0 = 不过滤；推荐 320）")
     args = p.parse_args()
 
     train_dir = Path(__file__).resolve().parent
@@ -389,7 +475,12 @@ def main() -> int:
         fasdd_yolo = step1_load_fasdd_coco(fasdd_root)
 
     if 3 in steps:
-        step3_merge(dfire_root, fasdd_root, fasdd_yolo, merged_root)
+        step3_merge(
+            dfire_root, fasdd_root, fasdd_yolo, merged_root,
+            drop_zero_size=not args.keep_zero_bbox,
+            max_aspect=args.max_aspect,
+            min_short_edge=args.min_short_edge,
+        )
 
     if 4 in steps:
         step4_phash_dedup(merged_root, threshold=args.dedup_thresh)
