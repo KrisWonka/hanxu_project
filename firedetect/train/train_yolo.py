@@ -47,6 +47,11 @@ def main() -> int:
     # 性能优化（详见 Obsidian 笔记《CV 学习笔记 — 训练加速优化全解》）
     p.add_argument("--compile", action="store_true",
                    help="开 torch.compile 图优化（提速 10-25%%，第一次编译慢 30s）")
+    # 长训练辅助（v6 二阶段方案要用）
+    p.add_argument("--cos-lr", action="store_true",
+                   help="余弦衰减 LR schedule（默认线性），长训更平滑")
+    p.add_argument("--close-mosaic", type=int, default=10,
+                   help="最后 N epoch 关闭 mosaic 增广让模型 settle（默认 10，长训建议 20）")
     args = p.parse_args()
 
     # 处理 cache 参数：ultralytics 期望 bool 或 'ram'/'disk'
@@ -111,6 +116,9 @@ def main() -> int:
         dfl=args.dfl,
         # 性能优化
         compile=args.compile,
+        # 长训练辅助
+        cos_lr=args.cos_lr,
+        close_mosaic=args.close_mosaic,
         # 其他
         plots=True,           # 训完出 PR 曲线、confusion matrix 等图
         save=True,
