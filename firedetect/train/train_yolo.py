@@ -52,6 +52,11 @@ def main() -> int:
                    help="余弦衰减 LR schedule（默认线性），长训更平滑")
     p.add_argument("--close-mosaic", type=int, default=10,
                    help="最后 N epoch 关闭 mosaic 增广让模型 settle（默认 10，长训建议 20）")
+    # Fine-tune 专用
+    p.add_argument("--lr0", type=float, default=0.01,
+                   help="初始学习率（默认 0.01；fine-tune 建议 0.001）")
+    p.add_argument("--freeze", type=int, default=0,
+                   help="freeze 前 N 层（默认 0 不冻结；fine-tune 建议 10-15 冻 backbone）")
     args = p.parse_args()
 
     # 处理 cache 参数：ultralytics 期望 bool 或 'ram'/'disk'
@@ -119,6 +124,8 @@ def main() -> int:
         # 长训练辅助
         cos_lr=args.cos_lr,
         close_mosaic=args.close_mosaic,
+        lr0=args.lr0,
+        freeze=args.freeze if args.freeze > 0 else None,
         # 其他
         plots=True,           # 训完出 PR 曲线、confusion matrix 等图
         save=True,
